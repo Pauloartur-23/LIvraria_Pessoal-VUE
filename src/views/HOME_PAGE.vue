@@ -1,713 +1,634 @@
 <script setup>
-import { useCartStore } from '../stores/store'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ref, onMounted, onUnmounted } from 'vue'
-import ChainOfIron2 from '../components/img-books/Chain_of_Iron_Volume_2.png'
-import ChainOfThorns from '../components/img-books/Chain_of_Thorns.png'
-import CityOfFallenAngels from '../components/img-books/City_of_Fallen_Angels.png'
-import NonaTheNinth from '../components/img-books/Nona_the_Ninth.png'
-import HarlemShuffle from '../components/img-books/Harlem_Shuffle.png'
-import TwoOldWomen from '../components/img-books/Two_Old_Women.png'
-import CarrieSoto from '../components/img-books/Carrie_Soto_Is_Back.png'
-import BookLovers from '../components/img-books/Book_Lovers.png'
+import { useCartStore } from '../stores/store'
+import { livros, categories } from '../data/books'
+import { coverFor } from '../utils/cover'
+import BookCard from '../components/BookCard.vue'
 
 const router = useRouter()
 const cartStore = useCartStore()
-const favorite = ref([])
 
-const loadFavorites = () => {
-  const storedFavorites = localStorage.getItem('favorites')
-  if (storedFavorites) {
-    favorite.value = JSON.parse(storedFavorites)
-  }
+const lancamentos = computed(() =>
+  [...livros].sort((a, b) => b.ano - a.ano).slice(0, 10)
+)
+
+const bestsellers = computed(() =>
+  livros.filter((b) => b.rating >= 4.7).slice(0, 8)
+)
+
+const featured = computed(() => [livros[12], livros[8], livros[0], livros[15]])
+
+const scrollRow = ref(null)
+const canPrev = ref(false)
+const canNext = ref(true)
+
+const updateArrows = () => {
+  const el = scrollRow.value
+  if (!el) return
+  canPrev.value = el.scrollLeft > 8
+  canNext.value = el.scrollLeft < el.scrollWidth - el.clientWidth - 8
 }
 
-const saveFavorites = () => {
-  localStorage.setItem('favorites', JSON.stringify(favorite.value))
-}
-
-const isFavorite = (id) => favorite.value.includes(id)
-
-const toggleFavorite = (id) => {
-  if (isFavorite(id)) {
-    favorite.value = favorite.value.filter(favId => favId !== id)
-  } else {
-    favorite.value.push(id)
-  }
-  saveFavorites()
-}
-
-const livros = [
-  {
-    img: ChainOfIron2,
-    titulo: 'Chain of Iron: Volume 2',
-    autor: 'Cassandra Clare',
-    preco: 'R$23.24',
-    id: '1',
-    resumo: 'A continuação da saga Shadowhunter, onde os personagens enfrentam novos desafios e mistérios em um mundo repleto de magia e perigo.'
-  },
-  {
-    img: ChainOfThorns,
-    titulo: 'Chain of Thorns',
-    autor: 'Cassandra Clare',
-    preco: 'R$23.24',
-    id: '2',
-    resumo: 'O último livro da trilogia The Last Hours, onde os Shadowhunters lutam contra forças sombrias para salvar seu mundo.'
-  },
-  {
-    img: CityOfFallenAngels,
-    titulo: 'City of Fallen Angels',
-    autor: 'Cassandra Clare',
-    preco: 'R$13.94',
-    id: '3',
-    resumo: 'Quarto livro da série The Mortal Instruments, onde Clary e Jace enfrentam novos desafios em sua jornada de amor e aventura.'
-  },
-  {
-    img: NonaTheNinth,
-    titulo: 'Nona the Ninth',
-    autor: 'Tamsyn Muir',
-    preco: 'R$16.84',
-    id: '4',
-    resumo: 'Uma história de mistério e magia, onde Nona deve desvendar segredos antigos para salvar seu mundo.'
-  },
-  {
-    img: HarlemShuffle,
-    titulo: 'Harlem Shuffle',
-    autor: 'Colson Whitehead',
-    preco: 'R$26.92',
-    id: '5',
-    resumo: 'Uma história envolvente sobre família, crime e redenção no Harlem dos anos 1960.'
-  },
-  {
-    img: TwoOldWomen,
-    titulo: 'Two Old Women',
-    autor: 'Velma Wallis',
-    preco: 'R$13.95',
-    id: '6',
-    resumo: 'Uma história inspiradora sobre duas mulheres idosas que desafiam as expectativas e encontram força na adversidade.'
-  },
-  {
-    img: CarrieSoto,
-    titulo: 'Carrie Soto Is Back',
-    autor: 'Taylor Jenkins Reid',
-    preco: 'R$26.04',
-    id: '7',
-    resumo: 'A história de uma ex-campeã de tênis que volta às quadras para provar que ainda tem o que é preciso para vencer.'
-  },
-  {
-    img: BookLovers,
-    titulo: 'Book Lovers',
-    autor: 'Emily Henry',
-    preco: 'R$15.81',
-    id: '8',
-    resumo: 'Uma história romântica sobre duas pessoas que descobrem o amor através de sua paixão compartilhada por livros.'
-  }
-]
-
-const offerSlides = ref(livros)
-const currentOfferSlide = ref(0)
-
-const nextOfferSlide = () => {
-  currentOfferSlide.value = (currentOfferSlide.value + 1) % offerSlides.value.length
-}
-
-const prevOfferSlide = () => {
-  currentOfferSlide.value = (currentOfferSlide.value - 1 + offerSlides.value.length) % offerSlides.value.length
-}
-
-const autoPlayInterval = ref(null)
-const startAutoPlay = () => {
-  stopAutoPlay()
-  autoPlayInterval.value = setInterval(nextOfferSlide, 5000)
-}
-
-const stopAutoPlay = () => {
-  if (autoPlayInterval.value) {
-    clearInterval(autoPlayInterval.value)
-    autoPlayInterval.value = null
-  }
-}
-
-const currentReleaseSlide = ref(0)
-const nextReleaseSlide = () => {
-  currentReleaseSlide.value = (currentReleaseSlide.value + 1) % Math.ceil(livros.length / 4)
-}
-
-const prevReleaseSlide = () => {
-  currentReleaseSlide.value = (currentReleaseSlide.value - 1 + Math.ceil(livros.length / 4)) % Math.ceil(livros.length / 4)
-}
-
-const addItemLike = (livro) => {
-  if (favorite.value.includes(livro.id)) {
-    favorite.value = favorite.value.filter(id => id !== livro.id)
-    cartStore.removeItemLike(livro.id)
-  } else {
-    favorite.value.push(livro.id)
-    cartStore.addItemLike(livro)
-  }
-}
-
-const addToCart = (livro) => {
-  const livroParaCarrinho = {
-    id: livro.id,
-    titulo: livro.titulo,
-    autor: livro.autor,
-    preco: livro.preco,
-    img: livro.img,
-    quantity: 1
-  }
-  cartStore.addItem(livroParaCarrinho)
-  router.push('/carrinho')
+const scrollBy = (dir) => {
+  const el = scrollRow.value
+  if (!el) return
+  el.scrollBy({ left: dir * 280, behavior: 'smooth' })
 }
 
 onMounted(() => {
-  loadFavorites()
-  startAutoPlay()
+  window.addEventListener('resize', updateArrows)
 })
 
 onUnmounted(() => {
-  stopAutoPlay()
+  window.removeEventListener('resize', updateArrows)
 })
+
+const copyCoupon = async (code) => {
+  try {
+    await navigator.clipboard.writeText(code)
+    cartStore.addToast(`Cupom ${code} copiado! Use no carrinho.`, 'success')
+  } catch {
+    cartStore.addToast(`Use o cupom ${code} no carrinho.`, 'info')
+  }
+}
 </script>
 
-
 <template>
-  <main id="home">
-    <section id="offer">
-      <div class="offer-carousel-container">
-        <div class="offer-carousel-wrapper">
-          <div class="offer-carousel" :style="{ transform: `translateX(-${currentOfferSlide * 100}%)` }">
-            <div v-for="(livro) in offerSlides" :key="livro.id" class="offer-carousel-item">
-              <div class="offer-content">
-                <button class="destaques-button">Destaques de Abril</button>
-                <h1>{{ livro.titulo }}</h1>
-                <p>{{ livro.autor }}</p>
-                <p class="book-resumo">{{ livro.resumo }}</p>
-                <button class="buy-button" @click="addToCart(livro)">
-                  <span class="mdi mdi-cart"></span>
-                  Comprar
-                </button>
-              </div>
-              <div class="offer-image-container">
-                <img :src="livro.img" :alt="livro.titulo">
-              </div>
+  <main class="home page">
+    <!-- ============ HERO ============ -->
+    <section class="hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <span class="hero-eyebrow">Livraria IFbooks</span>
+          <h1>Sua próxima grande leitura começa aqui.</h1>
+          <p class="hero-text">
+            Livros novos, usados e seminovos de milhares de sebos e livrarias.
+            Curadoria feita por quem ama histórias — e histórias boas merecem um novo leitor.
+          </p>
+          <div class="hero-actions">
+            <button class="btn btn-primary btn-lg" @click="router.push('/livros')">
+              Explorar a loja
+              <span class="mdi mdi-arrow-right"></span>
+            </button>
+            <button class="btn btn-outline btn-lg" @click="router.push('/livros')">
+              Ver lançamentos
+            </button>
+          </div>
+          <div class="hero-stats">
+            <div class="stat">
+              <strong>16+</strong>
+              <span>títulos em catálogo</span>
+            </div>
+            <div class="stat">
+              <strong>4,7</strong>
+              <span>avaliação média</span>
+            </div>
+            <div class="stat">
+              <strong>Grátis</strong>
+              <span>frete para SC</span>
             </div>
           </div>
         </div>
-        <button class="carousel-control prev" @click="prevOfferSlide">
-          <span class="mdi mdi-chevron-left"></span>
-        </button>
-        <button class="carousel-control next" @click="nextOfferSlide">
-          <span class="mdi mdi-chevron-right"></span>
-        </button>
-      </div>
-      <div class="carousel-dots">
-        <button v-for="i in offerSlides.length" :key="i" :class="{ active: currentOfferSlide === i - 1 }"
-          @click="currentOfferSlide = i - 1">
-        </button>
-      </div>
-    </section>
-    <section id="benefict">
-      <a href="#">
-        <div>
-          <span class="mdi mdi-truck"></span>
-          <h3>Frete grátis para SC</h3>
-        </div>
-      </a>
-      <a href="#">
-        <div>
-          <span class="mdi mdi-star"></span>
-          <h3>Livros recomendados</h3>
-        </div>
-      </a>
-      <a href="#">
-        <div>
-          <span class="mdi mdi-book-open-page-variant"></span>
-          <h3>Mais vendidos</h3>
-        </div>
-      </a>
-    </section>
-    <section id="releases">
-      <h2>Lançamentos</h2>
-      <div class="releases-carousel-container">
-        <button class="carousel-control prev" @click="prevReleaseSlide">
-          <span class="mdi mdi-chevron-left"></span>
-        </button>
-        <div class="releases-carousel-wrapper">
-          <div class="releases-carousel" :style="{ transform: `translateX(-${currentReleaseSlide * 100}%)` }">
-            <div class="releases-carousel-item" v-for="(group, index) in Math.ceil(livros.length / 4)" :key="index">
-              <ul>
-                <li v-for="livro in livros.slice(index * 4, (index + 1) * 4)" :key="livro.id">
-                  <img :src="livro.img" :alt="livro.titulo">
-                  <h4>{{ livro.titulo }}</h4>
-                  <p>{{ livro.autor }}</p>
-                  <div class="space-div">
-                    <p>{{ livro.preco }}</p>
-                    <span class="fa-solid fa-heart" :style="{ color: !isFavorite(livro.id) ? 'red' : '#008B8B' }"
-                      @click="toggleFavorite(livro.id); addItemLike(livro)"></span>
-                  </div>
-                  <button @click="addToCart(livro)">
-                    <span class="mdi mdi-cart"></span>
-                    Comprar
-                  </button>
-                </li>
-              </ul>
-            </div>
+
+        <div class="hero-visual">
+          <div class="stack">
+            <RouterLink
+              v-for="(book, i) in featured"
+              :key="book.id"
+              :to="`/livro/${book.id}`"
+              class="stack-card"
+              :class="`stack-${i + 1}`"
+            >
+              <img :src="coverFor(book)" :alt="book.titulo" />
+            </RouterLink>
           </div>
         </div>
-        <button class="carousel-control next" @click="nextReleaseSlide">
-          <span class="mdi mdi-chevron-right"></span>
+      </div>
+    </section>
+
+    <!-- ============ CATEGORIES ============ -->
+    <section class="categories">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <p class="section-eyebrow">Navegue por tema</p>
+            <h2>Explore as categorias</h2>
+          </div>
+          <button class="btn btn-ghost" @click="router.push('/livros')">
+            Ver todos <span class="mdi mdi-arrow-right"></span>
+          </button>
+        </div>
+        <div class="cat-grid">
+          <button
+            v-for="cat in categories"
+            :key="cat.id"
+            class="cat-card"
+            @click="router.push({ path: '/livros', query: { categoria: cat.id } })"
+          >
+            <span class="cat-icon mdi" :class="cat.mdi"></span>
+            <div class="cat-info">
+              <strong>{{ cat.nome }}</strong>
+              <span>{{ cat.descricao }}</span>
+            </div>
+            <span class="mdi mdi-chevron-right cat-arrow"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ LANÇAMENTOS ============ -->
+    <section class="carousel-sec">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <p class="section-eyebrow">Recém-chegados</p>
+            <h2>Lançamentos</h2>
+          </div>
+          <div class="carousel-nav">
+            <button class="nav-btn" :disabled="!canPrev" aria-label="Anterior" @click="scrollBy(-1)">
+              <span class="mdi mdi-chevron-left"></span>
+            </button>
+            <button class="nav-btn" :disabled="!canNext" aria-label="Próximo" @click="scrollBy(1)">
+              <span class="mdi mdi-chevron-right"></span>
+            </button>
+          </div>
+        </div>
+        <div
+          ref="scrollRow"
+          class="book-row"
+          @scroll.passive="updateArrows"
+        >
+          <BookCard v-for="book in lancamentos" :key="book.id" :book="book" class="row-item" />
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PROMO BANNER ============ -->
+    <section class="promo">
+      <div class="container promo-inner">
+        <div class="promo-copy">
+          <span class="promo-badge">Oferta por tempo limitado</span>
+          <h2>10% OFF na primeira compra</h2>
+          <p>Copie o cupom e aplique no seu carrinho. Válido para todo o catálogo.</p>
+        </div>
+        <button class="btn promo-btn" @click="copyCoupon('Kennedy10')">
+          <span class="mdi mdi-content-copy"></span>
+          Copiar cupom Kennedy10
         </button>
+      </div>
+    </section>
+
+    <!-- ============ MAIS VENDIDOS ============ -->
+    <section class="bestsellers">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <p class="section-eyebrow">Os queridinhos</p>
+            <h2>Mais vendidos</h2>
+          </div>
+          <button class="btn btn-ghost" @click="router.push('/livros')">
+            Ver todos <span class="mdi mdi-arrow-right"></span>
+          </button>
+        </div>
+        <div class="book-grid">
+          <BookCard v-for="book in bestsellers" :key="book.id" :book="book" />
+        </div>
       </div>
     </section>
   </main>
 </template>
 
 <style scoped>
-/*======================
-          MAIN #HOME
-  ======================*/
-main#home {
-  display: block;
-  background-color: white;
+.home {
+  overflow-x: hidden;
 }
 
-/*======================
-      SECTION #OFFER
-  ======================*/
-main #offer {
-  padding: 12vw 5vw 2vw 5vw;
-  position: relative;
+/* ============ HERO ============ */
+.hero {
+  background:
+    radial-gradient(60% 120% at 85% 10%, rgba(14, 124, 102, 0.14), transparent 60%),
+    linear-gradient(180deg, #fff 0%, var(--color-bg) 100%);
+  padding: 64px 0 72px;
 }
 
-main #offer .offer-carousel-container {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  padding: 2vw 10vw;
-}
-
-main #offer .offer-carousel-wrapper {
-  display: flex;
-  width: 100%;
-  overflow: hidden;
-}
-
-main #offer .offer-carousel {
-  display: flex;
-  width: 100%;
-  transition: transform 0.4s ease-in-out;
-}
-
-main #offer .offer-carousel-item {
-  min-width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-main #offer .offer-content {
-  flex: 1;
-  text-align: left;
-}
-
-main #offer .destaques-button {
-  background-color: white;
-  border: 2px #008B8B solid;
-  border-radius: 2px;
-  color: #008B8B;
-  padding: 0.5vw 1vw;
-  margin-bottom: 1vw;
-  transition: trasform 0.4s ease-in-out;
-}
-
-main #offer .destaques-button:hover {
-  border: 2px #003f3f solid;
-  color: #003f3f;
-}
-
-main #offer .offer-content h1 {
-  font-weight: bold;
-  color: #382C2C;
-  font-size: 2.5rem;
-  margin-bottom: 1vw;
-}
-
-main #offer .offer-content p {
-  color: #4D4C4C;
-  margin-bottom: 1vw;
-}
-
-main #offer .book-resumo {
-  color: #4D4C4C;
-  margin-bottom: 2vw;
-  line-height: 1.6;
-  font-size: 1.1rem;
-}
-
-main #offer .buy-button {
-  background-color: #008B8B;
-  color: white;
-  border: none;
-  padding: 1vw 2vw;
-  border-radius: 2px;
-  font-size: 1.1rem;
-  transition: all ease-in-out .5s;
-  display: flex;
-  align-items: center;
-  gap: 0.5vw;
-}
-
-main #offer .buy-button:hover {
-  background-color: #003f3f;
-}
-
-main #offer .offer-image-container {
-  flex: 1;
-  display: flex;
-  justify-content: center;
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 48px;
   align-items: center;
 }
 
-main #offer .offer-image-container img {
-  max-width: 300px;
-  width: 100%;
-  height: auto;
-  border-radius: 4px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  object-fit: contain;
+.hero-eyebrow {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 18px;
 }
 
-main #offer .carousel-control {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background-color: rgba(0, 139, 139, 0.7);
-  color: white;
-  border: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
+.hero-copy h1 {
+  font-size: clamp(2.3rem, 5vw, 3.6rem);
+  margin-bottom: 20px;
+}
+
+.hero-text {
+  color: var(--color-muted);
+  font-size: 1.08rem;
+  line-height: 1.7;
+  max-width: 540px;
+  margin-bottom: 30px;
+}
+
+.hero-actions {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  transition: background-color 0.3s ease;
-  z-index: 10;
-}
-
-main #offer .carousel-control.prev {
-  left: 0;
-}
-
-main #offer .carousel-control.next {
-  right: 0;
-}
-
-main #offer .carousel-control:hover {
-  background-color: #003f3f;
-}
-
-main #offer .carousel-dots {
-  display: flex;
-  justify-content: center;
-  margin-top: 1vw;
-  gap: 0.5vw;
-}
-
-main #offer .carousel-dots button {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: #008B8B;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  border: none;
-}
-
-main #offer .carousel-dots button.active {
-  background-color: #003f3f;
-}
-
-main #offer .carousel-dots button:hover {
-  background-color: #003f3f;
-}
-
-/*======================
-     SECTION #BENEFICT
-  ======================*/
-main #benefict {
-  display: flex;
-  justify-content: space-between;
-  padding: 2vw 10vw;
-  background-color: #008B8B;
-  box-shadow: 0 0 2px 0 #000000;
-  border: 1px #003f3f72 solid;
-}
-
-main #benefict div {
-  display: flex;
-  background-color: #003f3f;
-  padding: 0.2vw 2vw;
-  border-radius: 10px;
-  color: white;
-  transition: all ease-in-out .5s;
-  border: 2px #003f3f solid;
-  width: 20vw;
-  justify-content: center;
-}
-
-main #benefict div span {
-  font-size: 2rem;
-}
-
-main #benefict div h3 {
-  margin-top: 0.5vw;
-  font-size: 1.2rem;
-  padding-left: 0.5vw;
-  font-weight: bold;
-  transition: all ease-in-out .5s;
-}
-
-main #benefict a {
-  color: #ffffff;
-  text-decoration: none;
-  font-weight: bold;
-}
-
-/*======================
-     SECTION #RELEASES
-  ======================*/
-main #releases {
-  padding: 5vw 8vw 5vw 10vw;
-}
-
-main #releases h2 {
-  font-size: 2rem;
-  color: #231F2D;
-  margin-left: 2vw;
-  font-weight: bold;
-  margin-bottom: 2vw;
-}
-
-main #releases .releases-carousel-container {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  margin: 0 auto;
-}
-
-main #releases .releases-carousel-wrapper {
-  display: flex;
-  width: 100%;
-  overflow: hidden;
-}
-
-main #releases .releases-carousel {
-  display: flex;
-  width: 100%;
-  transition: transform 0.5s ease-in-out;
-}
-
-main #releases .releases-carousel-item {
-  flex: 0 0 100%;
-  min-width: 100%;
-  padding: 0 2vw;
-  box-sizing: border-box;
-}
-
-main #releases ul {
-  display: flex;
+  gap: 12px;
   flex-wrap: wrap;
-  justify-content: space-between;
+  margin-bottom: 40px;
 }
 
-main #releases ul li {
-  margin-right: 2vw;
-  margin-bottom: 2vw;
+.btn-lg {
+  padding: 15px 28px;
+  font-size: 1rem;
+}
+
+.hero-stats {
+  display: flex;
+  gap: 40px;
+}
+
+.stat {
   display: flex;
   flex-direction: column;
 }
 
-main #releases ul li img {
-  width: 100%;
-  max-width: 200px;
-  height: auto;
-  margin-bottom: 1vw;
-  border-radius: 4px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+.stat strong {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  color: var(--color-ink);
 }
 
-main #releases ul li h4 {
-  font-size: 1.1rem;
-  color: #382C2C;
-  font-weight: bold;
+.stat span {
+  font-size: 0.82rem;
+  color: var(--color-muted);
 }
 
-main #releases ul li p {
-  color: #4F4C57;
+/* Hero visual */
+.hero-visual {
+  position: relative;
+  min-height: 420px;
 }
 
-main #releases ul li .space-div {
+.stack {
+  position: relative;
+  height: 440px;
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 1vw;
-}
-
-main #releases ul li .space-div p {
-  font-weight: bold;
-  color: #382C2C;
-}
-
-main #releases ul li .space-div span {
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: all ease-in-out .3s;
-}
-
-main #releases ul li button {
-  padding: 1vw 2vw;
-  background-color: #008B8B;
-  color: white;
-  border: none;
-  border-radius: 2px;
-  font-size: 1.1rem;
-  transition: all ease-in-out .5s;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 0.5vw;
+  align-items: center;
 }
 
-main #releases ul li button:hover {
-  background-color: #003f3f;
-}
-
-main #releases .carousel-control {
+.stack-card {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background-color: rgba(0, 139, 139, 0.7);
-  color: white;
-  border: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
+  display: block;
+  width: 190px;
+  transition: transform 0.35s ease;
+  filter: drop-shadow(var(--shadow-lg));
+}
+
+.stack-card img {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--color-surface-2);
+}
+
+.stack-1 {
+  transform: rotate(-12deg) translateX(-120px);
+  z-index: 1;
+}
+
+.stack-2 {
+  transform: rotate(-4deg) translateX(-30px);
+  z-index: 2;
+}
+
+.stack-3 {
+  transform: rotate(5deg) translateX(70px);
+  z-index: 3;
+}
+
+.stack-4 {
+  transform: rotate(14deg) translateX(160px);
+  z-index: 0;
+}
+
+.hero-float-chip {
+  position: absolute;
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  transition: background-color 0.3s ease;
-  z-index: 10;
+  gap: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-lg);
+  animation: float 5s ease-in-out infinite;
 }
 
-main #releases .carousel-control.prev {
-  left: 0;
+.hero-float-chip > .mdi {
+  font-size: 1.6rem;
+  color: var(--color-primary);
 }
 
-main #releases .carousel-control.next {
+.hero-float-chip strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.hero-float-chip small {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
+.chip-1 {
+  bottom: 18px;
+  left: 8px;
+}
+
+.chip-2 {
+  top: 24px;
   right: 0;
+  animation-delay: 1.6s;
 }
 
-main #releases .carousel-control:hover {
-  background-color: #003f3f;
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* ============ CATEGORIES ============ */
+.categories {
+  padding: 72px 0 8px;
+}
+
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.cat-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: all 0.25s ease;
+}
+
+.cat-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+}
+
+.cat-icon {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 1.6rem;
+}
+
+.cat-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cat-info strong {
+  font-size: 1rem;
+}
+
+.cat-info span {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.cat-arrow {
+  color: var(--color-muted);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.cat-card:hover .cat-arrow {
+  color: var(--color-primary);
+  transform: translateX(3px);
+}
+
+/* ============ CAROUSEL ============ */
+.carousel-sec {
+  padding: 64px 0 16px;
+}
+
+.carousel-nav {
+  display: flex;
+  gap: 10px;
+}
+
+.nav-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  display: grid;
+  place-items: center;
+  font-size: 1.3rem;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.book-row {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 12px;
+  scrollbar-width: none;
+}
+
+.book-row::-webkit-scrollbar {
+  display: none;
+}
+
+.row-item {
+  flex: 0 0 230px;
+  scroll-snap-align: start;
+}
+
+/* ============ PROMO ============ */
+.promo {
+  padding: 24px 0;
+}
+
+.promo-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  background: linear-gradient(120deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  border-radius: var(--radius-lg);
+  padding: 44px 48px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.promo-inner::before {
+  content: '';
+  position: absolute;
+  right: -80px;
+  top: -80px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.promo-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent-light);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  margin-bottom: 12px;
+}
+
+.promo-copy h2 {
+  color: #fff;
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+  margin-bottom: 8px;
+}
+
+.promo-copy p {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+}
+
+.promo-btn {
+  background: #fff;
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.promo-btn:hover {
+  background: var(--color-bg);
+  transform: translateY(-2px);
+}
+
+/* ============ BESTSELLERS ============ */
+.bestsellers {
+  padding: 56px 0 8px;
+}
+
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 1000px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-visual {
+    min-height: 380px;
+    margin-top: 8px;
+  }
+
+  .cat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .book-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .cat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .book-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .promo-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 32px 28px;
+  }
+
+  .hero-stats {
+    gap: 24px;
+  }
+
+  .stack-card {
+    width: 150px;
+  }
+
+  .stack-1 {
+    transform: rotate(-12deg) translateX(-70px);
+  }
+
+  .stack-2 {
+    transform: rotate(-4deg) translateX(-15px);
+  }
+
+  .stack-3 {
+    transform: rotate(5deg) translateX(40px);
+  }
+
+  .stack-4 {
+    transform: rotate(14deg) translateX(95px);
+  }
+
+  .chip-1 {
+    left: -6px;
+  }
 }
 </style>
-=======
-  main #benefict {
-    display: flex;
-    justify-content: space-between;
-    padding: 2vw 10vw;
-    border-bottom: 2px #27AE60 solid;
-    border-top: 2px #27AE60 solid;
-  }
-  main #benefict div{
-    padding-right: 7vw ;
-    display: flex;
-    border-right: 1px #937DC2 solid;
-  }
-  main #benefict #last-benefict {
-    padding-right: 0;
-    border-right: none;
-  }
-  main #benefict div span {
-    font-size: 50px;
-  }
-  main #benefict div h3{
-    font-size: 1.5rem;
-    margin-top: 1vw;
-    padding-left: 1vw;
-    font-weight: bold;
-    transition: all ease-in-out .5s;
-  }
-  main #benefict div h3 a:hover{
-    text-decoration: underline;
-  } 
-  main #benefict a{
-    color: #382C2C;
-    text-decoration: none;
-    font-weight: bold;
-  }
-  /*======================
-     SECTION #RELEASES
-  ======================*/
-  main #releases {
-    padding: 5vw 13.5vw 5vw 15vw;
-  }
-  main #releases h2{
-    font-size: 2rem;
-    color: #231F2D;
-    margin-left: 2vw;
-    font-weight: bold;
-    margin-bottom: 2vw;
-  }
-  main #releases ul{
-    display: flex;
-    flex-wrap: wrap;
-  }
-  main #releases ul li {
-    margin-right: 1.5vw;
-    margin-bottom: 5vw;
-  }
-  main #releases ul li h4{
-    font-size: 1.3rem;
-    color: #382C2C;
-    font-weight: bold;
-  }
-  main #releases ul li p{
-    color: #4F4C57;
-  }
-  
-  main #releases ul li #space-div{
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 1vw;
-  }
-  main #releases ul li #space-div p {
-    font-weight: bold;
-    color: #382C2C;
-  }
-  main #releases ul li #space-div span{
-    margin-right: 0.5vw;
-    font-size: 1.5rem;
-    cursor: pointer;
-    transition: 0.4s ease-in-out;
-  }
-  
-  main #releases button {
-    padding: 1vw 0;
-    background-color: #27AE60;
-    color: white;
-    border: none;
-    border-radius: 2px;
-    width: 100%;
-    font-size: 1.1rem;
-    transition: all ease-in-out .5s;
-  }
-  main #releases button:hover{
-    background-color: #1d8046;
-  }
-</style> 
